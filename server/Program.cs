@@ -33,10 +33,14 @@ class ServerUDP
     static string configFile = @"../Setting.json";
     static string configContent = File.ReadAllText(configFile);
     static Setting? setting = JsonSerializer.Deserialize<Setting>(configContent);
+    static List<DNSRecord> DNSRecords = ReadDNSRecords();
 
-    // TODO: [Read the JSON file and return the list of DNSRecords]
-
-
+    public static List<DNSRecord> ReadDNSRecords()
+    {
+        string dnsRecordsFile = "DNSrecords.json";
+        string dnsRecordsContent = File.ReadAllText(dnsRecordsFile);
+        return JsonSerializer.Deserialize<List<DNSRecord>>(dnsRecordsContent);
+    }
 
 
     public static void start()
