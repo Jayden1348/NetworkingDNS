@@ -30,10 +30,15 @@ public class Setting
 
 class ServerUDP
 {
+    // Gets the host and client IP adresses and Ports
     static string configFile = @"../Setting.json";
     static string configContent = File.ReadAllText(configFile);
     static Setting? setting = JsonSerializer.Deserialize<Setting>(configContent);
+
+    // Reads the DNSrecords json and Lists them
     static List<DNSRecord> DNSRecords = ReadDNSRecords();
+
+
 
     public static List<DNSRecord> ReadDNSRecords()
     {
@@ -45,14 +50,20 @@ class ServerUDP
 
     public static void start()
     {
-
-
         // TODO: [Create a socket and endpoints and bind it to the server IP address and port number]
-
-
+        Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        IPAddress ipAddress = IPAddress.Parse(setting.ServerIPAddress);
+        IPEndPoint localEndpoint = new IPEndPoint(ipAddress, setting.ServerPortNumber);
+        sock.Bind(localEndpoint);
+        sock.Listen(5);
+        Console.WriteLine("\n Waiting for clients..");
+        Socket newSock = sock.Accept();
 
         // TODO:[Receive and print a received Message from the client]
-
+        // byte[] buffer = new byte[1024];
+        // int bytesReceived = newSock.Receive(buffer);
+        // string message = Encoding.ASCII.GetString(buffer, 0, bytesReceived);
+        // Console.WriteLine("Received message: " + message);
 
 
 
