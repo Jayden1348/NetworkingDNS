@@ -29,19 +29,39 @@ public class Setting
 class ClientUDP
 {
 
-    //TODO: [Deserialize Setting.json]
+    // ✅ TODO: [Deserialize Setting.json]
     static string configFile = @"../Setting.json";
     static string configContent = File.ReadAllText(configFile);
     static Setting? setting = JsonSerializer.Deserialize<Setting>(configContent);
 
 
+    // Turning a Message object into JSON into bytes
+    static byte[] byteify(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
+
+
+    // Making a new msgid
+    static int msgcounter = 0;
+    static int GetNextMsgId() => msgcounter++;
+
+
     public static void start()
     {
 
-        //TODO: [Create endpoints and socket]
+        // ✅ TODO: [Create endpoints and socket]
+        IPAddress ipAddress = IPAddress.Parse(setting.ServerIPAddress);
+        IPEndPoint serverEndpoint = new IPEndPoint(ipAddress, 32000);
+        Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        sock.Connect(serverEndpoint);
 
+        // ✅ TODO: [Create and send HELLO]
+        Message HelloMessage = new Message
+        {
+            MsgId = GetNextMsgId(),
+            MsgType = MessageType.Hello,
+            Content = "Hello Server!"
+        };
+        sock.Send(byteify(HelloMessage));
 
-        //TODO: [Create and send HELLO]
 
         //TODO: [Receive and print Welcome from server]
 

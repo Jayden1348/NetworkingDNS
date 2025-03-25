@@ -30,16 +30,14 @@ public class Setting
 
 class ServerUDP
 {
-    // Gets the host and client IP adresses and Ports
+    // Fills the "setting" parameter with the settings
     static string configFile = @"../Setting.json";
     static string configContent = File.ReadAllText(configFile);
     static Setting? setting = JsonSerializer.Deserialize<Setting>(configContent);
 
+
     // Reads the DNSrecords json and Lists them
     static List<DNSRecord> DNSRecords = ReadDNSRecords();
-
-
-
     public static List<DNSRecord> ReadDNSRecords()
     {
         string dnsRecordsFile = "DNSrecords.json";
@@ -47,27 +45,31 @@ class ServerUDP
         return JsonSerializer.Deserialize<List<DNSRecord>>(dnsRecordsContent);
     }
 
+    // Small function unpacking a message
+    static void print(Message newMessage) => Console.WriteLine($"Received message:\nID: {newMessage.MsgId}\nType: {newMessage.MsgType}\nContent: {newMessage.Content}");
+
 
     public static void start()
     {
-        // TODO: [Create a socket and endpoints and bind it to the server IP address and port number]
+
+        // ✅ TODO: [Create a socket and endpoints and bind it to the server IP address and port number]
         Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         IPAddress ipAddress = IPAddress.Parse(setting.ServerIPAddress);
         IPEndPoint localEndpoint = new IPEndPoint(ipAddress, setting.ServerPortNumber);
         sock.Bind(localEndpoint);
         sock.Listen(5);
-        Console.WriteLine("\n Waiting for clients..");
+        Console.WriteLine("\nWaiting for clients...");
         Socket newSock = sock.Accept();
 
-        // TODO:[Receive and print a received Message from the client]
-        // byte[] buffer = new byte[1024];
-        // int bytesReceived = newSock.Receive(buffer);
-        // string message = Encoding.ASCII.GetString(buffer, 0, bytesReceived);
-        // Console.WriteLine("Received message: " + message);
+        // ✅ TODO:[Receive and print a received Message from the client]
+        // ✅ TODO:[Receive and print Hello]
+        byte[] buffer = new byte[1000];
+        int NumOfBytes = newSock.Receive(buffer);
+        string JSONdata = Encoding.ASCII.GetString(buffer, 0, NumOfBytes);
+        Message newMessage = JsonSerializer.Deserialize<Message>(JSONdata);
+        print(newMessage);
 
 
-
-        // TODO:[Receive and print Hello]
 
 
 
