@@ -45,54 +45,104 @@ class ServerUDP
         return JsonSerializer.Deserialize<List<DNSRecord>>(dnsRecordsContent);
     }
 
-    // Small function unpacking a message
-    static void print(Message newMessage) => Console.WriteLine($"Received message:\nID: {newMessage.MsgId}\nType: {newMessage.MsgType}\nContent: {newMessage.Content}");
 
 
     public static void start()
     {
+        // Making a new msgid
+        int msgcounter = 0;
+        int GetNextMsgId() => msgcounter++;
+
+        void print(Message newMessage) => Console.WriteLine($"Received message:\nID: {newMessage.MsgId}\nType: {newMessage.MsgType}\nContent: {newMessage.Content}\n\n");
+        byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
+        Message decrypt(byte[] bytemsg, int end) => JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
+
+        byte[] buffer = new byte[1000];
+        int endcondition = 0;
 
         // ✅ TODO: [Create a socket and endpoints and bind it to the server IP address and port number]
-        Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         IPAddress ipAddress = IPAddress.Parse(setting.ServerIPAddress);
         IPEndPoint localEndpoint = new IPEndPoint(ipAddress, setting.ServerPortNumber);
+        IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
+        EndPoint remoteEndpoint = (EndPoint)sender;
+
+        Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         sock.Bind(localEndpoint);
-        sock.Listen(5);
-        Console.WriteLine("\nWaiting for clients...");
-        Socket newSock = sock.Accept();
-
-        // ✅ TODO:[Receive and print a received Message from the client]
-        // ✅ TODO:[Receive and print Hello]
-        byte[] buffer = new byte[1000];
-        int NumOfBytes = newSock.Receive(buffer);
-        string JSONdata = Encoding.ASCII.GetString(buffer, 0, NumOfBytes);
-        Message newMessage = JsonSerializer.Deserialize<Message>(JSONdata);
-        print(newMessage);
 
 
+        while (endcondition != 3)   // for infinite running = true
+        {
+            // ✅ TODO:[Receive and print a received Message from the client]
+            Console.WriteLine("\nWaiting for messages...\n");
+            int recievedmessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
+            Message newmsg = decrypt(buffer, recievedmessage);
+            print(newmsg);
+
+            switch (newmsg.MsgType)
+            {
+                case MessageType.Hello:
+                    // ✅ TODO:[Receive and print Hello]
+                    // ✅ TODO:[Send Welcome to the client]
+                    Message WelcomeMessage = new Message
+                    {
+                        MsgId = GetNextMsgId(),
+                        MsgType = MessageType.Welcome,
+                        Content = "Welcome Client!"
+                    };
+                    byte[] bytewelcomemessage = encrypt(WelcomeMessage);
+                    sock.SendTo(bytewelcomemessage, bytewelcomemessage.Length, SocketFlags.None, remoteEndpoint);
+                    break;
+
+                case MessageType.DNSLookup:
+                    Console.WriteLine("Received DNSLookup message.");
+                    break;
+
+                case MessageType.DNSLookupReply:
+                    Console.WriteLine("Received DNSLookupReply message.");
+                    break;
+
+                case MessageType.Error:
+                    Console.WriteLine("Received Error message.");
+                    break;
+
+                case MessageType.Ack:
+                    Console.WriteLine("Received Ack message.");
+                    break;
+
+                case MessageType.End:
+                    Console.WriteLine("Received End message.");
+                    endcondition = 3;
+                    //sock.Close()
+                    break;
+
+                default:
+                    Console.WriteLine("Unknown message type received.");
+                    break;
+            }
 
 
 
-        // TODO:[Send Welcome to the client]
 
 
-        // TODO:[Receive and print DNSLookup]
+            // TODO:[Receive and print DNSLookup]
 
 
-        // TODO:[Query the DNSRecord in Json file]
+            // TODO:[Query the DNSRecord in Json file]
 
-        // TODO:[If found Send DNSLookupReply containing the DNSRecord]
-
-
-
-        // TODO:[If not found Send Error]
+            // TODO:[If found Send DNSLookupReply containing the DNSRecord]
 
 
-        // TODO:[Receive Ack about correct DNSLookupReply from the client]
+
+            // TODO:[If not found Send Error]
 
 
-        // TODO:[If no further requests receieved send End to the client]
+            // TODO:[Receive Ack about correct DNSLookupReply from the client]
 
+
+            // TODO:[If no further requests receieved send End to the client]
+
+            endcondition++;
+        }
     }
 
 

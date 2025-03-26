@@ -35,23 +35,28 @@ class ClientUDP
     static Setting? setting = JsonSerializer.Deserialize<Setting>(configContent);
 
 
-    // Turning a Message object into JSON into bytes
-    static byte[] byteify(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
-
-
-    // Making a new msgid
-    static int msgcounter = 0;
-    static int GetNextMsgId() => msgcounter++;
-
 
     public static void start()
     {
+        // Making a new msgid
+        int msgcounter = 0;
+        int GetNextMsgId() => msgcounter++;
+
+        void print(Message newMessage) => Console.WriteLine($"Received message:\nID: {newMessage.MsgId}\nType: {newMessage.MsgType}\nContent: {newMessage.Content}\n\n");
+        byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
+        Message decrypt(byte[] bytemsg, int end) => JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
+
+        byte[] buffer = new byte[1000];
+
 
         // ✅ TODO: [Create endpoints and socket]
         IPAddress ipAddress = IPAddress.Parse(setting.ServerIPAddress);
-        IPEndPoint serverEndpoint = new IPEndPoint(ipAddress, 32000);
-        Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        sock.Connect(serverEndpoint);
+        IPEndPoint ServerEndpoint = new IPEndPoint(ipAddress, setting.ServerPortNumber);
+        IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
+        EndPoint remoteEndpoint = (EndPoint)sender;
+
+        Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        sock.ReceiveTimeout = 5000;     // When not recieving a confirmation, time out
 
         // ✅ TODO: [Create and send HELLO]
         Message HelloMessage = new Message
@@ -60,10 +65,34 @@ class ClientUDP
             MsgType = MessageType.Hello,
             Content = "Hello Server!"
         };
-        sock.Send(byteify(HelloMessage));
+        byte[] bytehellomessage = encrypt(HelloMessage);
+        sock.SendTo(bytehellomessage, bytehellomessage.Length, SocketFlags.None, ServerEndpoint);
 
 
-        //TODO: [Receive and print Welcome from server]
+        // ✅ TODO: [Receive and print Welcome from server]
+        Console.WriteLine("Waiting for response...\n");
+        try
+        {
+            int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
+            Message newMsg = decrypt(buffer, receivedMessage);
+            print(newMsg);
+        }
+        catch (SocketException ex)
+        {
+            if (ex.SocketErrorCode == SocketError.TimedOut)
+            {
+                Console.WriteLine("ReceiveFrom timed out. No response received within the time limit.");
+            }
+            else
+            {
+                Console.WriteLine($"SocketException occurred: {ex.Message}");
+            }
+            sock.Close();
+            return; // Stop the program, ERROR: server crashes
+        }
+
+
+
 
         // TODO: [Create and send DNSLookup Message]
 
