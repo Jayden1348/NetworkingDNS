@@ -53,7 +53,7 @@ class ServerUDP
         int msgcounter = 0;
         int GetNextMsgId() => msgcounter++;
 
-        void print(Message newMessage) => Console.WriteLine($"Received message:\nID: {newMessage.MsgId}\nType: {newMessage.MsgType}\nContent: {newMessage.Content}\n\n");
+        void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------\n");
         byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
         Message decrypt(byte[] bytemsg, int end) => JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
 
@@ -70,7 +70,7 @@ class ServerUDP
         sock.Bind(localEndpoint);
 
 
-        while (endcondition != 3)   // for infinite running = true
+        while (endcondition != 6)   // for infinite running = true
         {
             // ✅ TODO:[Receive and print a received Message from the client]
             Console.WriteLine("\nWaiting for messages...\n");
@@ -83,26 +83,27 @@ class ServerUDP
                 case MessageType.Hello:
                     // ✅ TODO:[Receive and print Hello]
                     // ✅ TODO:[Send Welcome to the client]
-                    Message WelcomeMessage = new Message
+                    Message Welcome = new Message
                     {
                         MsgId = GetNextMsgId(),
                         MsgType = MessageType.Welcome,
                         Content = "Welcome Client!"
                     };
-                    byte[] bytewelcomemessage = encrypt(WelcomeMessage);
-                    sock.SendTo(bytewelcomemessage, bytewelcomemessage.Length, SocketFlags.None, remoteEndpoint);
+                    byte[] WelcomeMessage = encrypt(Welcome);
+                    sock.SendTo(WelcomeMessage, WelcomeMessage.Length, SocketFlags.None, remoteEndpoint);
                     break;
+
 
                 case MessageType.DNSLookup:
-                    Console.WriteLine("Received DNSLookup message.");
-                    break;
-
-                case MessageType.DNSLookupReply:
-                    Console.WriteLine("Received DNSLookupReply message.");
-                    break;
-
-                case MessageType.Error:
-                    Console.WriteLine("Received Error message.");
+                    // ✅ TODO:[Receive and print DNSLookup]
+                    Message DNSLookupReply = new Message
+                    {
+                        MsgId = GetNextMsgId(),
+                        MsgType = MessageType.DNSLookupReply,
+                        Content = "DNSDATA"
+                    };
+                    byte[] DNSLookupReplyMessage = encrypt(DNSLookupReply);
+                    sock.SendTo(DNSLookupReplyMessage, DNSLookupReplyMessage.Length, SocketFlags.None, remoteEndpoint);
                     break;
 
                 case MessageType.Ack:
@@ -124,7 +125,7 @@ class ServerUDP
 
 
 
-            // TODO:[Receive and print DNSLookup]
+
 
 
             // TODO:[Query the DNSRecord in Json file]

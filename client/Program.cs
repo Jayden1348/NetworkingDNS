@@ -59,18 +59,18 @@ class ClientUDP
         sock.ReceiveTimeout = 5000;     // When not recieving a confirmation, time out
 
         // ✅ TODO: [Create and send HELLO]
-        Message HelloMessage = new Message
+        Message Hello = new Message
         {
             MsgId = GetNextMsgId(),
             MsgType = MessageType.Hello,
             Content = "Hello Server!"
         };
-        byte[] bytehellomessage = encrypt(HelloMessage);
-        sock.SendTo(bytehellomessage, bytehellomessage.Length, SocketFlags.None, ServerEndpoint);
+        byte[] HelloMessage = encrypt(Hello);
+        sock.SendTo(HelloMessage, HelloMessage.Length, SocketFlags.None, ServerEndpoint);
 
 
         // ✅ TODO: [Receive and print Welcome from server]
-        Console.WriteLine("Waiting for response...\n");
+        Console.WriteLine("Waiting for Welcome...\n");
         try
         {
             int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
@@ -81,26 +81,62 @@ class ClientUDP
         {
             if (ex.SocketErrorCode == SocketError.TimedOut)
             {
-                Console.WriteLine("ReceiveFrom timed out. No response received within the time limit.");
+                Console.WriteLine("ReceiveFrom timed out. No response received from server.");
             }
             else
             {
                 Console.WriteLine($"SocketException occurred: {ex.Message}");
             }
             sock.Close();
-            return; // Stop the program, ERROR: server crashes
+            return; // Stop the program
         }
 
 
 
 
-        // TODO: [Create and send DNSLookup Message]
+        // ✅ TODO: [Create and send DNSLookup Message]
+        Message DNSLookup = new Message
+        {
+            MsgId = GetNextMsgId(),
+            MsgType = MessageType.DNSLookup,
+            Content = "www.example.com"
+        };
+        byte[] DNSLookupMessage = encrypt(DNSLookup);
+        sock.SendTo(DNSLookupMessage, DNSLookupMessage.Length, SocketFlags.None, ServerEndpoint);
 
 
         //TODO: [Receive and print DNSLookupReply from server]
-
+        Console.WriteLine("Waiting for DNSLookupReply...\n");
+        try
+        {
+            int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
+            Message newMsg = decrypt(buffer, receivedMessage);
+            print(newMsg);
+        }
+        catch (SocketException ex)
+        {
+            if (ex.SocketErrorCode == SocketError.TimedOut)
+            {
+                Console.WriteLine("ReceiveFrom timed out. No response received from server.");
+            }
+            else
+            {
+                Console.WriteLine($"SocketException occurred: {ex.Message}");
+            }
+            sock.Close();
+            return; // Stop the program
+        }
 
         //TODO: [Send Acknowledgment to Server]
+        Message Acknowledge = new Message
+        {
+            MsgId = GetNextMsgId(),
+            MsgType = MessageType.Ack,
+            Content = "Reply Recieved"
+        };
+        byte[] AcknowledgeMessage = encrypt(Acknowledge);
+        sock.SendTo(AcknowledgeMessage, AcknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
+
 
         // TODO: [Send next DNSLookup to server]
         // repeat the process until all DNSLoopkups (correct and incorrect onces) are sent to server and the replies with DNSLookupReply
