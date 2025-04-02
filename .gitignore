@@ -1,0 +1,30 @@
+# Ignore build directories
+bin/
+obj/
+
+# Ignore user-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Ignore NuGet packages
+*.nupkg
+packages/
+*.nuget.g.props
+*.nuget.g.targets
+
+# Ignore auto-generated files
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.AssemblyAttributes.cs
+*.GlobalUsings.g.cs
+
+# Ignore logs and temporary files
+*.log
+*.tmp
+*.temp
+*.cache
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
