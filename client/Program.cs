@@ -145,12 +145,124 @@ class ClientUDP
 
         // TODO: [Send next DNSLookup to server]
         // repeat the process until all DNSLoopkups (correct and incorrect onces) are sent to server and the replies with DNSLookupReply
+        Console.WriteLine("\n\n\nDNSLookups");
+        var dnsLookups = new List<Message>
+        {
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "www.test.com" } } // Valid record
+            },
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "MX" }, { "Value", "example.com" } } // Valid record
+            },
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "B" }, { "Value", "unknown.domain" } } // Invalid record, not supported type
+            },
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup // Invalid record, missing content
+            }
+            // content error possibilities 
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = "Invalid content" }, // Invalid content
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = null }, // Null content
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = "" } // Empty content
 
-        //TODO: [Receive and print End from server]
+            // type error possibilities 
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "InvalidType" }, { "Value", "www.test.com" } } }, // Invalid type
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "" }, { "Value", "www.test.com" } } }, // Empty type
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", null }, { "Value", "www.test.com" } } }, // Null type
 
+            // value error possibilities 
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "" } } }, // Empty value
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", null } } }, // Null value
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "InvalidValue" } } } // Invalid value
 
+        };
 
+        foreach (var dnsLookup in dnsLookups)
+        {
+            byte[] dnsLookupMessage = encrypt(dnsLookup);
+            sock.SendTo(dnsLookupMessage, dnsLookupMessage.Length, SocketFlags.None, ServerEndpoint);
 
+            Console.WriteLine($"Send DNSLookup, waiting for DNSLookupReply...");
+            try
+            {
+                int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
+                Message newMsg = decrypt(buffer, receivedMessage);
+                print(newMsg);
 
+                if (newMsg.MsgType == MessageType.DNSLookupReply || newMsg.MsgType == MessageType.Error)
+                {
+                    if (newMsg.MsgId != dnsLookup.MsgId)
+                    {
+                        Console.WriteLine($"The ID of the received message ({newMsg.MsgId}) does not match the expected ID ({dnsLookup.MsgId})!");
+                        return;
+                    }
+
+                    // Send acknowledgment
+                    Message acknowledge = new Message
+                    {
+                        MsgId = GetNextMsgId(),
+                        MsgType = MessageType.Ack,
+                        Content = dnsLookup.MsgId
+                    };
+                    byte[] acknowledgeMessage = encrypt(acknowledge);
+                    sock.SendTo(acknowledgeMessage, acknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
+                }
+                else
+                {
+                    Console.WriteLine("Unexpected message type received!");
+                    return;
+                }
+            }
+            catch (SocketException ex)
+            {
+                if (ex.SocketErrorCode == SocketError.TimedOut)
+                {
+                    Console.WriteLine("ReceiveFrom timed out. No response received from server.");
+                }
+                else
+                {
+                    Console.WriteLine($"SocketException occurred: {ex.Message}");
+                }
+                sock.Close();
+                return; // Stop the program
+            }
+        }
+
+        // Receive and print End message from server
+        Console.WriteLine("Waiting for End message from server...");
+        try
+        {
+            int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
+            Message endMsg = decrypt(buffer, receivedMessage);
+            print(endMsg);
+
+            if (endMsg.MsgType == MessageType.End)
+            {
+                Console.WriteLine("Received End message. Terminating client.");
+            }
+            else
+            {
+                Console.WriteLine("Unexpected message type: received instead of End!");
+            }
+        }
+        catch (SocketException ex)
+        {
+            Console.WriteLine($"SocketException occurred: {ex.Message}");
+        }
+        finally
+        {
+            sock.Close();
+        }
     }
 }
