@@ -28,8 +28,6 @@ public class Setting
 
 class ClientUDP
 {
-
-    // ✅ TODO: [Deserialize Setting.json]
     static string configFile = @"../Setting.json";
     static string configContent = File.ReadAllText(configFile);
     static Setting? setting = JsonSerializer.Deserialize<Setting>(configContent);
@@ -42,14 +40,14 @@ class ClientUDP
         int msgcounter = 0;
         int GetNextMsgId() => msgcounter++;
 
-        void print(Message newMessage) => Console.WriteLine($"Received message:\nID: {newMessage.MsgId}\nType: {newMessage.MsgType}\nContent: {newMessage.Content}\n\n");
+        void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------\n");
         byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
         Message decrypt(byte[] bytemsg, int end) => JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
 
         byte[] buffer = new byte[1000];
 
 
-        // ✅ TODO: [Create endpoints and socket]
+
         IPAddress ipAddress = IPAddress.Parse(setting.ServerIPAddress);
         IPEndPoint ServerEndpoint = new IPEndPoint(ipAddress, setting.ServerPortNumber);
         IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
@@ -60,7 +58,6 @@ class ClientUDP
 
 
 
-        // ✅ TODO: [Create and send HELLO]
         Message Hello = new Message
         {
             MsgId = GetNextMsgId(),
@@ -71,9 +68,7 @@ class ClientUDP
         sock.SendTo(HelloMessage, HelloMessage.Length, SocketFlags.None, ServerEndpoint);
 
 
-
-        // ✅ TODO: [Receive and print Welcome from server]
-        Console.WriteLine("Waiting for Welcome...\n");
+        Console.WriteLine("\nSend Hello, waiting for Welcome...");
         try
         {
             int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
@@ -97,8 +92,6 @@ class ClientUDP
 
 
 
-
-        // ✅ TODO: [Create and send DNSLookup Message]
         Message DNSLookup = new Message
         {
             MsgId = GetNextMsgId(),
@@ -109,14 +102,13 @@ class ClientUDP
         sock.SendTo(DNSLookupMessage, DNSLookupMessage.Length, SocketFlags.None, ServerEndpoint);
 
 
-        //TODO: [Receive and print DNSLookupReply from server]
-        Console.WriteLine("Waiting for DNSLookupReply...\n");
+        Console.WriteLine("Send DNSLookup, waiting for DNSLookupReply...");
         try
         {
             int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
             Message newMsg = decrypt(buffer, receivedMessage);
             print(newMsg);
-            if (newMsg.MsgType != MessageType.DNSLookupReply && newMsg.MsgType != MessageType.Error) { Console.WriteLine("The recieved message wasn't the expected 'DNSLookupReply' message!"); return; }
+            if (newMsg.MsgType != MessageType.DNSLookupReply && newMsg.MsgType != MessageType.Error) { Console.WriteLine("The recieved message wasn't either of the expected 'DNSLookupReply' or 'Error' messages!"); return; }
             if (newMsg.MsgId != DNSLookup.MsgId) { Console.WriteLine($"The id of recieved message wasn't the expected id {DNSLookup.MsgId}!"); return; }
         }
         catch (SocketException ex)
@@ -133,7 +125,7 @@ class ClientUDP
             return; // Stop the program
         }
 
-        //TODO: [Send Acknowledgment to Server]
+
         Message Acknowledge = new Message
         {
             MsgId = GetNextMsgId(),
@@ -143,6 +135,13 @@ class ClientUDP
         byte[] AcknowledgeMessage = encrypt(Acknowledge);
         sock.SendTo(AcknowledgeMessage, AcknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
 
+        // ✅ TODO: [Deserialize Setting.json]
+        // ✅ TODO: [Create endpoints and socket]
+        // ✅ TODO: [Create and send HELLO]
+        // ✅ TODO: [Receive and print Welcome from server]
+        // ✅ TODO: [Create and send DNSLookup Message]
+        // ✅ TODO: [Receive and print DNSLookupReply from server]
+        // ✅ TODO: [Send Acknowledgment to Server]
 
         // TODO: [Send next DNSLookup to server]
         // repeat the process until all DNSLoopkups (correct and incorrect onces) are sent to server and the replies with DNSLookupReply

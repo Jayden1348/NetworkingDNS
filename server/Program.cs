@@ -47,15 +47,18 @@ class ServerUDP
 
     public static DNSRecord SearchDNSRecords(object content)
     {
-        Dictionary<string, string> contents = JsonSerializer.Deserialize<Dictionary<string, string>>(content.ToString());
-        if (contents == null)
+        try
+        {
+            Dictionary<string, string> contents = JsonSerializer.Deserialize<Dictionary<string, string>>(content.ToString());
+
+            string dnstype = contents["Type"];
+            string dnsvalue = contents["Value"];
+            return DNSRecords.FirstOrDefault(x => x.Type == dnstype && x.Name == dnsvalue);
+        }
+        catch (Exception e)
         {
             return null;
         }
-
-        string dnstype = contents["Type"];
-        string dnsvalue = contents["Value"];
-        return DNSRecords.FirstOrDefault(x => x.Type == dnstype && x.Value == dnsvalue) ?? null;
     }
 
 
@@ -74,7 +77,6 @@ class ServerUDP
         byte[] buffer = new byte[1000];
         int endcondition = 0;
 
-        // ✅ TODO: [Create a socket and endpoints and bind it to the server IP address and port number]
         IPAddress ipAddress = IPAddress.Parse(setting.ServerIPAddress);
         IPEndPoint localEndpoint = new IPEndPoint(ipAddress, setting.ServerPortNumber);
         IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
@@ -83,11 +85,10 @@ class ServerUDP
         Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         sock.Bind(localEndpoint);
 
-
+        Console.WriteLine("\nWaiting for messages...\n");
         while (endcondition != 6)   // for infinite running = true
         {
-            // ✅ TODO:[Receive and print a received Message from the client]
-            Console.WriteLine("\nWaiting for messages...\n");
+
             int recievedmessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
             Message newmsg = decrypt(buffer, recievedmessage);
             print(newmsg);
@@ -95,8 +96,6 @@ class ServerUDP
             switch (newmsg.MsgType)
             {
                 case MessageType.Hello:
-                    // ✅ TODO:[Receive and print Hello]
-                    // ✅ TODO:[Send Welcome to the client]
                     Message Welcome = new Message
                     {
                         MsgId = GetNextMsgId(),
@@ -107,9 +106,7 @@ class ServerUDP
                     sock.SendTo(WelcomeMessage, WelcomeMessage.Length, SocketFlags.None, remoteEndpoint);
                     break;
 
-
                 case MessageType.DNSLookup:
-                    // ✅ TODO:[Receive and print DNSLookup]
                     DNSRecord FoundRecord = SearchDNSRecords(newmsg.Content);
                     Message DNSLookupReply = new Message
                     {
@@ -131,7 +128,7 @@ class ServerUDP
                     break;
 
                 default:
-                    Console.WriteLine("Unknown message type received.");
+                    Console.WriteLine($"Unknown message type received ({newmsg.MsgType}).");
                     break;
             }
 
@@ -140,18 +137,16 @@ class ServerUDP
 
 
 
+            // ✅ TODO: [Create a socket and endpoints and bind it to the server IP address and port number]
+            // ✅ TODO:[Receive and print a received Message from the client]
+            // ✅ TODO:[Receive and print Hello]
+            // ✅ TODO:[Send Welcome to the client]
+            // ✅ TODO:[Receive and print DNSLookup]
+            // ✅ TODO:[Query the DNSRecord in Json file]
+            // ✅ TODO:[If found Send DNSLookupReply containing the DNSRecord]
+            // ✅ TODO:[If not found Send Error]
 
-
-            // TODO:[Query the DNSRecord in Json file]
-
-            // TODO:[If found Send DNSLookupReply containing the DNSRecord]
-
-
-
-            // TODO:[If not found Send Error]
-
-
-            // TODO:[Receive Ack about correct DNSLookupReply from the client]
+            // ✅? TODO:[Receive Ack about correct DNSLookupReply from the client]
 
 
             // TODO:[If no further requests receieved send End to the client]
