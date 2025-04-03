@@ -45,6 +45,19 @@ class ServerUDP
         return JsonSerializer.Deserialize<List<DNSRecord>>(dnsRecordsContent);
     }
 
+    public static DNSRecord SearchDNSRecords(object content)
+    {
+        Dictionary<string, string> contents = content as Dictionary<string, string>;
+        if (contents == null)
+        {
+            throw new ArgumentException("Content must be a Dictionary!");
+        }
+        string dnstype = contents["Type"];
+        string dnsvalue = contents["Value"];
+        return DNSRecords.FirstOrDefault(x => x.Type == dnstype && x.Value == dnsvalue);
+    }
+
+
 
 
     public static void start()
@@ -96,11 +109,12 @@ class ServerUDP
 
                 case MessageType.DNSLookup:
                     // ✅ TODO:[Receive and print DNSLookup]
+                    DNSRecord FoundRecord = SearchDNSRecords(newmsg.Content);
                     Message DNSLookupReply = new Message
                     {
-                        MsgId = GetNextMsgId(),
-                        MsgType = MessageType.DNSLookupReply,
-                        Content = "DNSDATA"
+                        MsgId = newmsg.MsgId,
+                        MsgType = FoundRecord == null ? MessageType.Error : MessageType.DNSLookupReply,
+                        Content = FoundRecord == null ? "Domain not found" : FoundRecord
                     };
                     byte[] DNSLookupReplyMessage = encrypt(DNSLookupReply);
                     sock.SendTo(DNSLookupReplyMessage, DNSLookupReplyMessage.Length, SocketFlags.None, remoteEndpoint);

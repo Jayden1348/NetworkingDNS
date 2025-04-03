@@ -58,6 +58,8 @@ class ClientUDP
         Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         sock.ReceiveTimeout = 5000;     // When not recieving a confirmation, time out
 
+
+
         // ✅ TODO: [Create and send HELLO]
         Message Hello = new Message
         {
@@ -69,6 +71,7 @@ class ClientUDP
         sock.SendTo(HelloMessage, HelloMessage.Length, SocketFlags.None, ServerEndpoint);
 
 
+
         // ✅ TODO: [Receive and print Welcome from server]
         Console.WriteLine("Waiting for Welcome...\n");
         try
@@ -76,6 +79,7 @@ class ClientUDP
             int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
             Message newMsg = decrypt(buffer, receivedMessage);
             print(newMsg);
+            if (newMsg.MsgType != MessageType.Welcome) { Console.WriteLine("The recieved message wasn't the expected 'Welcome' message!"); return; }
         }
         catch (SocketException ex)
         {
@@ -99,7 +103,7 @@ class ClientUDP
         {
             MsgId = GetNextMsgId(),
             MsgType = MessageType.DNSLookup,
-            Content = "www.example.com"
+            Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "www.test.com" } }
         };
         byte[] DNSLookupMessage = encrypt(DNSLookup);
         sock.SendTo(DNSLookupMessage, DNSLookupMessage.Length, SocketFlags.None, ServerEndpoint);
@@ -112,6 +116,8 @@ class ClientUDP
             int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
             Message newMsg = decrypt(buffer, receivedMessage);
             print(newMsg);
+            if (newMsg.MsgType != MessageType.DNSLookupReply) { Console.WriteLine("The recieved message wasn't the expected 'Welcome' message!"); return; }
+            if (newMsg.MsgId != DNSLookup.MsgId) { Console.WriteLine($"The id of recieved message wasn't the expected id {DNSLookup.MsgId}!"); return; }
         }
         catch (SocketException ex)
         {
@@ -132,7 +138,7 @@ class ClientUDP
         {
             MsgId = GetNextMsgId(),
             MsgType = MessageType.Ack,
-            Content = "Reply Recieved"
+            Content = DNSLookup.MsgId
         };
         byte[] AcknowledgeMessage = encrypt(Acknowledge);
         sock.SendTo(AcknowledgeMessage, AcknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
