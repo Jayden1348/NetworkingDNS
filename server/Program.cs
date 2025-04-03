@@ -47,14 +47,15 @@ class ServerUDP
 
     public static DNSRecord SearchDNSRecords(object content)
     {
-        Dictionary<string, string> contents = content as Dictionary<string, string>;
+        Dictionary<string, string> contents = JsonSerializer.Deserialize<Dictionary<string, string>>(content.ToString());
         if (contents == null)
         {
-            throw new ArgumentException("Content must be a Dictionary!");
+            return null;
         }
+
         string dnstype = contents["Type"];
         string dnsvalue = contents["Value"];
-        return DNSRecords.FirstOrDefault(x => x.Type == dnstype && x.Value == dnsvalue);
+        return DNSRecords.FirstOrDefault(x => x.Type == dnstype && x.Value == dnsvalue) ?? null;
     }
 
 
@@ -121,7 +122,6 @@ class ServerUDP
                     break;
 
                 case MessageType.Ack:
-                    Console.WriteLine("Received Ack message.");
                     break;
 
                 case MessageType.End:

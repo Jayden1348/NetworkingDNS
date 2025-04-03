@@ -116,7 +116,7 @@ class ClientUDP
             int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
             Message newMsg = decrypt(buffer, receivedMessage);
             print(newMsg);
-            if (newMsg.MsgType != MessageType.DNSLookupReply) { Console.WriteLine("The recieved message wasn't the expected 'Welcome' message!"); return; }
+            if (newMsg.MsgType != MessageType.DNSLookupReply && newMsg.MsgType != MessageType.Error) { Console.WriteLine("The recieved message wasn't the expected 'DNSLookupReply' message!"); return; }
             if (newMsg.MsgId != DNSLookup.MsgId) { Console.WriteLine($"The id of recieved message wasn't the expected id {DNSLookup.MsgId}!"); return; }
         }
         catch (SocketException ex)
