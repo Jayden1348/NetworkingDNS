@@ -40,13 +40,54 @@ class ClientUDP
         int msgcounter = 0;
         int GetNextMsgId() => msgcounter++;
 
+        var dnsLookups = new List<Message>
+        {
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "www.test.com" } } // Valid record
+            },
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "MX" }, { "Value", "example.com" } } // Valid record
+            },
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "B" }, { "Value", "unknown.domain" } } // Invalid record, not supported type
+            },
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup // Invalid record, missing content
+            }
+            // content error possibilities 
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = "Invalid content" }, // Invalid content
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = null }, // Null content
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = "" } // Empty content
+
+            // type error possibilities 
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "InvalidType" }, { "Value", "www.test.com" } } }, // Invalid type
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "" }, { "Value", "www.test.com" } } }, // Empty type
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", null }, { "Value", "www.test.com" } } }, // Null type
+
+            // value error possibilities 
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "" } } }, // Empty value
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", null } } }, // Null value
+            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "InvalidValue" } } } // Invalid value
+
+        };
+
+
         void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------\n");
         byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
         Message decrypt(byte[] bytemsg, int end) => JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
 
         byte[] buffer = new byte[1000];
-
-
 
         IPAddress ipAddress = IPAddress.Parse(setting.ServerIPAddress);
         IPEndPoint ServerEndpoint = new IPEndPoint(ipAddress, setting.ServerPortNumber);
@@ -92,101 +133,6 @@ class ClientUDP
 
 
 
-        Message DNSLookup = new Message
-        {
-            MsgId = GetNextMsgId(),
-            MsgType = MessageType.DNSLookup,
-            Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "www.test.com" } }
-        };
-        byte[] DNSLookupMessage = encrypt(DNSLookup);
-        sock.SendTo(DNSLookupMessage, DNSLookupMessage.Length, SocketFlags.None, ServerEndpoint);
-
-
-        Console.WriteLine("Send DNSLookup, waiting for DNSLookupReply...");
-        try
-        {
-            int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
-            Message newMsg = decrypt(buffer, receivedMessage);
-            print(newMsg);
-            if (newMsg.MsgType != MessageType.DNSLookupReply && newMsg.MsgType != MessageType.Error) { Console.WriteLine("The recieved message wasn't either of the expected 'DNSLookupReply' or 'Error' messages!"); return; }
-            if (newMsg.MsgId != DNSLookup.MsgId) { Console.WriteLine($"The id of recieved message wasn't the expected id {DNSLookup.MsgId}!"); return; }
-        }
-        catch (SocketException ex)
-        {
-            if (ex.SocketErrorCode == SocketError.TimedOut)
-            {
-                Console.WriteLine("ReceiveFrom timed out. No response received from server.");
-            }
-            else
-            {
-                Console.WriteLine($"SocketException occurred: {ex.Message}");
-            }
-            sock.Close();
-            return; // Stop the program
-        }
-
-
-        Message Acknowledge = new Message
-        {
-            MsgId = GetNextMsgId(),
-            MsgType = MessageType.Ack,
-            Content = DNSLookup.MsgId
-        };
-        byte[] AcknowledgeMessage = encrypt(Acknowledge);
-        sock.SendTo(AcknowledgeMessage, AcknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
-
-        // ✅ TODO: [Deserialize Setting.json]
-        // ✅ TODO: [Create endpoints and socket]
-        // ✅ TODO: [Create and send HELLO]
-        // ✅ TODO: [Receive and print Welcome from server]
-        // ✅ TODO: [Create and send DNSLookup Message]
-        // ✅ TODO: [Receive and print DNSLookupReply from server]
-        // ✅ TODO: [Send Acknowledgment to Server]
-
-        // TODO: [Send next DNSLookup to server]
-        // repeat the process until all DNSLoopkups (correct and incorrect onces) are sent to server and the replies with DNSLookupReply
-        Console.WriteLine("\n\n\nDNSLookups");
-        var dnsLookups = new List<Message>
-        {
-            new Message
-            {
-                MsgId = GetNextMsgId(),
-                MsgType = MessageType.DNSLookup,
-                Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "www.test.com" } } // Valid record
-            },
-            new Message
-            {
-                MsgId = GetNextMsgId(),
-                MsgType = MessageType.DNSLookup,
-                Content = new Dictionary<string, string> { { "Type", "MX" }, { "Value", "example.com" } } // Valid record
-            },
-            new Message
-            {
-                MsgId = GetNextMsgId(),
-                MsgType = MessageType.DNSLookup,
-                Content = new Dictionary<string, string> { { "Type", "B" }, { "Value", "unknown.domain" } } // Invalid record, not supported type
-            },
-            new Message
-            {
-                MsgId = GetNextMsgId(),
-                MsgType = MessageType.DNSLookup // Invalid record, missing content
-            }
-            // content error possibilities 
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = "Invalid content" }, // Invalid content
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = null }, // Null content
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = "" } // Empty content
-
-            // type error possibilities 
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "InvalidType" }, { "Value", "www.test.com" } } }, // Invalid type
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "" }, { "Value", "www.test.com" } } }, // Empty type
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", null }, { "Value", "www.test.com" } } }, // Null type
-
-            // value error possibilities 
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "" } } }, // Empty value
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", null } } }, // Null value
-            // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "InvalidValue" } } } // Invalid value
-
-        };
 
         foreach (var dnsLookup in dnsLookups)
         {
@@ -239,6 +185,9 @@ class ClientUDP
             }
         }
 
+
+
+
         // Receive and print End message from server
         Console.WriteLine("Waiting for End message from server...");
         try
@@ -264,5 +213,17 @@ class ClientUDP
         {
             sock.Close();
         }
+
+        // ✅ TODO: [Deserialize Setting.json]
+        // ✅ TODO: [Create endpoints and socket]
+        // ✅ TODO: [Create and send HELLO]
+        // ✅ TODO: [Receive and print Welcome from server]
+        // ✅ TODO: [Create and send DNSLookup Message]
+        // ✅ TODO: [Receive and print DNSLookupReply from server]
+        // ✅ TODO: [Send Acknowledgment to Server]
+        // ✅ TODO: [Send next DNSLookup to server]
+        // ✅ repeat the process until all DNSLoopkups (correct and incorrect onces) are sent to server and the replies with DNSLookupReply
+
+
     }
 }

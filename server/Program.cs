@@ -70,7 +70,7 @@ class ServerUDP
         int msgcounter = 0;
         int GetNextMsgId() => msgcounter++;
 
-        void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------\n");
+        void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------");
         byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
         Message decrypt(byte[] bytemsg, int end) => JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
 
@@ -104,6 +104,7 @@ class ServerUDP
                     };
                     byte[] WelcomeMessage = encrypt(Welcome);
                     sock.SendTo(WelcomeMessage, WelcomeMessage.Length, SocketFlags.None, remoteEndpoint);
+                    Console.WriteLine("Send Welcome\n");
                     break;
 
                 case MessageType.DNSLookup:
@@ -116,15 +117,11 @@ class ServerUDP
                     };
                     byte[] DNSLookupReplyMessage = encrypt(DNSLookupReply);
                     sock.SendTo(DNSLookupReplyMessage, DNSLookupReplyMessage.Length, SocketFlags.None, remoteEndpoint);
+                    Console.WriteLine("Send DNSLookupReply\n");
                     break;
 
                 case MessageType.Ack:
-                    break;
-
-                case MessageType.End:
-                    Console.WriteLine("Received End message.");
-                    endcondition = 3;
-                    //sock.Close()
+                    Console.WriteLine("\n");
                     break;
 
                 default:
