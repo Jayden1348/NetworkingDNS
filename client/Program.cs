@@ -56,13 +56,34 @@ class ClientUDP
             },
             new Message
             {
-
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "www.somewebsite.com" } } // Invalid record, not found
             },
             new Message
             {
                 MsgId = GetNextMsgId(),
-                MsgType = MessageType.DNSLookup // Invalid record, missing content
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "B" }, { "Value", "example.com" } } // Invalid record, wrong type
+            },
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = MessageType.DNSLookup,
+                Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "FAULTY123!" } } // Invalid record, wrong value
+            },
+            new Message
+            {
+                MsgId = GetNextMsgId(),
+                MsgType = (MessageType)100000,
+                Content = new Dictionary<string, string> { { "Type", "A" }, { "Value", "FAULTY123!" } } // Invalid record, nonexistent msgtype
+            },
+            new Message
+            {
+                // Empty message
             }
+
+
             // content error possibilities 
             // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = "Invalid content" }, // Invalid content
             // new Message { MsgId = GetNextMsgId(), MsgType = MessageType.DNSLookup, Content = null }, // Null content

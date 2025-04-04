@@ -93,6 +93,24 @@ class ServerUDP
             Message newmsg = decrypt(buffer, recievedmessage);
             print(newmsg);
 
+            if (newmsg.MsgType == MessageType.Hello && newmsg.MsgId == 0 && newmsg.Content == null)
+            {
+                Console.WriteLine($"Empty message was received.");
+                Message Error = new Message
+                {
+                    MsgId = newmsg.MsgId,
+                    MsgType = MessageType.Error,
+                    Content = "Empty message was sent!"
+                };
+                byte[] ErrorMessage = encrypt(Error);
+                sock.SendTo(ErrorMessage, ErrorMessage.Length, SocketFlags.None, remoteEndpoint);
+                Console.WriteLine("Send Error\n\n");
+                continue;
+            }
+
+
+
+
             switch (newmsg.MsgType)
             {
                 case MessageType.Hello:
@@ -126,7 +144,16 @@ class ServerUDP
 
                 default:
                     Console.WriteLine($"Unknown message type received ({newmsg.MsgType}).");
-                    break;
+                    Message Error = new Message
+                    {
+                        MsgId = newmsg.MsgId,
+                        MsgType = MessageType.Error,
+                        Content = "Unknown messagetype was sent!"
+                    };
+                    byte[] ErrorMessage = encrypt(Error);
+                    sock.SendTo(ErrorMessage, ErrorMessage.Length, SocketFlags.None, remoteEndpoint);
+                    Console.WriteLine("Send Error\n\n");
+                    continue;
             }
 
 
