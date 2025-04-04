@@ -56,9 +56,7 @@ class ClientUDP
             },
             new Message
             {
-                MsgId = GetNextMsgId(),
-                MsgType = MessageType.DNSLookup,
-                Content = new Dictionary<string, string> { { "Type", "B" }, { "Value", "unknown.domain" } } // Invalid record, not supported type
+
             },
             new Message
             {
@@ -83,7 +81,7 @@ class ClientUDP
         };
 
 
-        void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------\n");
+        void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------\n\n");
         byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
         Message decrypt(byte[] bytemsg, int end) => JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
 
@@ -95,7 +93,7 @@ class ClientUDP
         EndPoint remoteEndpoint = (EndPoint)sender;
 
         Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        sock.ReceiveTimeout = 5000;     // When not recieving a confirmation, time out
+        sock.ReceiveTimeout = 2000;     // When not recieving a confirmation, time out
 
 
 

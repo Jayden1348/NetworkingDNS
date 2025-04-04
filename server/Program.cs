@@ -104,7 +104,7 @@ class ServerUDP
                     };
                     byte[] WelcomeMessage = encrypt(Welcome);
                     sock.SendTo(WelcomeMessage, WelcomeMessage.Length, SocketFlags.None, remoteEndpoint);
-                    Console.WriteLine("Send Welcome\n");
+                    Console.WriteLine("Send Welcome\n\n");
                     break;
 
                 case MessageType.DNSLookup:
@@ -117,7 +117,7 @@ class ServerUDP
                     };
                     byte[] DNSLookupReplyMessage = encrypt(DNSLookupReply);
                     sock.SendTo(DNSLookupReplyMessage, DNSLookupReplyMessage.Length, SocketFlags.None, remoteEndpoint);
-                    Console.WriteLine("Send DNSLookupReply\n");
+                    Console.WriteLine("Send DNSLookupReply\n\n");
                     break;
 
                 case MessageType.Ack:
