@@ -69,6 +69,7 @@ class ServerUDP
         int msgcounter = 0;
         int GetNextMsgId() => msgcounter++;
         int msgtracker = 0;
+        bool hellorecieved = false;
 
         void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------");
         byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
@@ -126,9 +127,11 @@ class ServerUDP
                         byte[] WelcomeMessage = encrypt(Welcome);
                         sock.SendTo(WelcomeMessage, WelcomeMessage.Length, SocketFlags.None, remoteEndpoint);
                         Console.WriteLine("Send Welcome\n\n");
+                        hellorecieved = true;
                         break;
 
                     case MessageType.DNSLookup:
+                        if (!hellorecieved) break;
                         DNSRecord FoundRecord = SearchDNSRecords(newmsg.Content);
                         Message DNSLookupReply = new Message
                         {
