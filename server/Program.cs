@@ -86,7 +86,7 @@ class ServerUDP
         sock.Bind(localEndpoint);
 
         Console.WriteLine("\nWaiting for messages...\n");
-        while (endcondition != 6)   // for infinite running = true
+        while (true)   // for infinite running = true
         {
 
             int recievedmessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
