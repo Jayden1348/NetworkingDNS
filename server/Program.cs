@@ -132,6 +132,22 @@ class ServerUDP
 
                     case MessageType.DNSLookup:
                         if (!hellorecieved) break;
+                        
+                        var domain = JsonSerializer.Deserialize<Dictionary<string, string>>(newmsg.Content.ToString());
+                        if (!IsValidDomain(domain["Value"]))
+                        {
+                            Message InvalidDomainError = new Message
+                            {
+                                MsgId = newmsg.MsgId,
+                                MsgType = MessageType.Error,
+                                Content = "Invalid domain format"
+                            };
+                            byte[] InvalidDomainErrorMessage = encrypt(InvalidDomainError);
+                            sock.SendTo(InvalidDomainErrorMessage, InvalidDomainErrorMessage.Length, SocketFlags.None, remoteEndpoint);
+                            Console.WriteLine("Send InvalidDomainError\n\n");
+                            break;
+                        }
+                        
                         DNSRecord FoundRecord = SearchDNSRecords(newmsg.Content);
                         Message DNSLookupReply = new Message
                         {
@@ -203,6 +219,35 @@ class ServerUDP
 
         }
     }
+    private static bool IsValidDomain(string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+            return false;
 
+        if (domain.Length < 3 || domain.Length > 253)
+            return false;
 
+        var parts = domain.Split('.');
+        if (parts.Length < 2)
+            return false;
+
+        foreach (var part in parts)
+        {
+            if (string.IsNullOrWhiteSpace(part) || part.Length > 63)
+                return false;
+
+            if (part.StartsWith("-") || part.EndsWith("-"))
+                return false;
+
+            foreach (char c in part)
+            {
+                if (!char.IsLetterOrDigit(c) && c != '-')
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    
 }
