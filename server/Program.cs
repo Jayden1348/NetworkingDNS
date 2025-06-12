@@ -189,6 +189,21 @@ class ServerUDP
 
                     case MessageType.DNSLookup:
                         if (!hellorecieved) break;
+                        
+                        if (newmsg.Content == null)
+                        {
+                            Console.WriteLine("DNSLookup message content is null.");
+                            Message NullContentError = new Message
+                            {
+                                MsgId = newmsg.MsgId,
+                                MsgType = MessageType.Error,
+                                Content = "DNSLookup message content is null."
+                            };
+                            byte[] NullContentErrorMessage = encrypt(NullContentError);
+                            sock.SendTo(NullContentErrorMessage, NullContentErrorMessage.Length, SocketFlags.None, remoteEndpoint);
+                            Console.WriteLine("Send NullContentError\n\n");
+                            break;
+                        }
 
                         var domain = JsonSerializer.Deserialize<Dictionary<string, string>>(newmsg.Content.ToString());
                         if (domain == null || 
