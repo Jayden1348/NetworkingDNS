@@ -107,6 +107,7 @@ class ServerUDP
         int GetNextMsgId() => msgcounter++;
         int msgtracker = 0;
         bool hellorecieved = false;
+        Dictionary<int, (Message reply, int retryCount)> unacknowledgedReplies = new Dictionary<int, (Message, int)>();
 
         void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------");
         byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
@@ -189,7 +190,7 @@ class ServerUDP
 
                     case MessageType.DNSLookup:
                         if (!hellorecieved) break;
-                        
+
                         if (newmsg.Content == null)
                         {
                             Console.WriteLine("DNSLookup message content is null.");
@@ -206,8 +207,8 @@ class ServerUDP
                         }
 
                         var domain = JsonSerializer.Deserialize<Dictionary<string, string>>(newmsg.Content.ToString());
-                        if (domain == null || 
-                            !domain.ContainsKey("Value") || !(domain["Value"] is string value) || 
+                        if (domain == null ||
+                            !domain.ContainsKey("Value") || !(domain["Value"] is string value) ||
                             !domain.ContainsKey("Type") || !(domain["Type"] is string type))
                         {
                             Console.WriteLine("DNSLookup message is missing required keys (Value or Type).");
@@ -222,7 +223,7 @@ class ServerUDP
                             Console.WriteLine("Send MissingKeysError\n\n");
                             break;
                         }
-                        
+
                         if (!IsValidDomain(domain["Value"]))
                         {
                             Message InvalidDomainError = new Message
@@ -246,11 +247,24 @@ class ServerUDP
                         };
                         byte[] DNSLookupReplyMessage = encrypt(DNSLookupReply);
                         sock.SendTo(DNSLookupReplyMessage, DNSLookupReplyMessage.Length, SocketFlags.None, remoteEndpoint);
+
+                        unacknowledgedReplies[newmsg.MsgId] = (DNSLookupReply, 0);
+
+
+
                         Console.WriteLine("Send DNSLookupReply\n\n");
                         break;
 
                     case MessageType.Ack:
-                        Console.WriteLine("\n");
+                        if (unacknowledgedReplies.ContainsKey(newmsg.MsgId))
+                        {
+                            unacknowledgedReplies.Remove(newmsg.MsgId);
+                            Console.WriteLine($"Ack received for MsgId: {newmsg.MsgId}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Unexpected Ack received for MsgId: {newmsg.MsgId}");
+                        }
                         break;
 
                     default:
@@ -265,6 +279,26 @@ class ServerUDP
                         sock.SendTo(ErrorMessage, ErrorMessage.Length, SocketFlags.None, remoteEndpoint);
                         Console.WriteLine("Send Error\n\n");
                         continue;
+                }
+                // Track unacknowledged replies
+                foreach (var key in unacknowledgedReplies.Keys.ToList())
+                {
+                    var (reply, retryCount) = unacknowledgedReplies[key];
+
+                    // Check if the retry limit has been reached
+                    if (retryCount >= 3)
+                    {
+                        Console.WriteLine($"Max retries reached for MsgId: {key}. Removing from unacknowledged list.");
+                        unacknowledgedReplies.Remove(key);
+                        continue;
+                    }
+
+                    
+                    Console.WriteLine($"Resending DNSLookupReply for MsgId: {key} (Retry {retryCount + 1})");
+                    byte[] ReplyMessage = encrypt(reply);
+                    sock.SendTo(ReplyMessage, ReplyMessage.Length, SocketFlags.None, remoteEndpoint);
+                    unacknowledgedReplies[key] = (reply, retryCount + 1); // Update retry count and timestamp
+                    
                 }
 
             }
