@@ -139,6 +139,21 @@ class ServerUDP
                     // send error message back to client
                     continue;
                 }
+
+                // catches invalid msgtyoes
+                if (!Enum.IsDefined(typeof(MessageType), newmsg.MsgType))
+                {
+                    Console.WriteLine($"Invalid MsgType received: {newmsg.MsgType}");
+                    // Message Error = new Message
+                    // {
+                    //     MsgId = newmsg.MsgId,
+                    //     MsgType = MessageType.Error,
+                    //     Content = "Invalid MsgType received!"
+                    // };
+                    // byte[] ErrorMessage = encrypt(Error);
+                    // sock.SendTo(ErrorMessage, ErrorMessage.Length, SocketFlags.None, remoteEndpoint);
+                    // continue;
+                }
                 print(newmsg);
 
                 if (newmsg.MsgType == MessageType.Hello && newmsg.MsgId == 0 && newmsg.Content == null)
@@ -287,7 +302,7 @@ class ServerUDP
                     return false;
             }
         }
-
+        
         return true;
     }
 
