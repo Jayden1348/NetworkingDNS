@@ -191,6 +191,23 @@ class ServerUDP
                         if (!hellorecieved) break;
 
                         var domain = JsonSerializer.Deserialize<Dictionary<string, string>>(newmsg.Content.ToString());
+                        if (domain == null || 
+                            !domain.ContainsKey("Value") || !(domain["Value"] is string value) || 
+                            !domain.ContainsKey("Type") || !(domain["Type"] is string type))
+                        {
+                            Console.WriteLine("DNSLookup message is missing required keys (Value or Type).");
+                            Message MissingKeysError = new Message
+                            {
+                                MsgId = newmsg.MsgId,
+                                MsgType = MessageType.Error,
+                                Content = "DNSLookup message is missing required keys (Value or Type)."
+                            };
+                            byte[] MissingKeysErrorMessage = encrypt(MissingKeysError);
+                            sock.SendTo(MissingKeysErrorMessage, MissingKeysErrorMessage.Length, SocketFlags.None, remoteEndpoint);
+                            Console.WriteLine("Send MissingKeysError\n\n");
+                            break;
+                        }
+                        
                         if (!IsValidDomain(domain["Value"]))
                         {
                             Message InvalidDomainError = new Message
@@ -288,6 +305,9 @@ class ServerUDP
         if (parts.Length < 2)
             return false;
 
+        if (parts.Length == 3 && parts[0].ToLower() != "www")
+            return false;
+
         foreach (var part in parts)
         {
             if (string.IsNullOrWhiteSpace(part) || part.Length > 63)
@@ -302,7 +322,7 @@ class ServerUDP
                     return false;
             }
         }
-        
+
         return true;
     }
 
