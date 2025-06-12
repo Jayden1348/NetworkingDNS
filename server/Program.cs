@@ -40,16 +40,40 @@ class ServerUDP
     static List<DNSRecord> DNSRecords = ReadDNSRecords();
     public static List<DNSRecord> ReadDNSRecords()
     {
-        string dnsRecordsFile = "DNSrecords.json";
-        string dnsRecordsContent = File.ReadAllText(dnsRecordsFile);
-        return JsonSerializer.Deserialize<List<DNSRecord>>(dnsRecordsContent);
+        try
+        {
+            string dnsRecordsFile = "DNSrecords.json";
+            string dnsRecordsContent = File.ReadAllText(dnsRecordsFile);
+            var records = JsonSerializer.Deserialize<List<DNSRecord>>(dnsRecordsContent);
+            if (records == null)
+            {
+                // no files found
+                // Console.WriteLine("No DNS records found in the file.");
+                return new List<DNSRecord>();
+            }
+            return records;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reading DNS records: {ex.Message}");
+            return new List<DNSRecord>();
+        }
+        
     }
 
     public static DNSRecord SearchDNSRecords(object content)
     {
         try
         {
+            var contentString = content?.ToString();
+            if (string.IsNullOrEmpty(contentString))
+            {
+                return null;
+            }
+
             Dictionary<string, string> contents = JsonSerializer.Deserialize<Dictionary<string, string>>(content.ToString());
+            
+            if (contents == null || !contents.ContainsKey("Type") || !contents.ContainsKey("Value")) return null;
 
             string dnstype = contents["Type"];
             string dnsvalue = contents["Value"];
@@ -60,7 +84,20 @@ class ServerUDP
             return null;
         }
     }
-
+    static Message decrypt(byte[] bytemsg, int end)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"Failed to deserialize message: {ex.Message}");
+            return null;
+        }
+    }
+    
+    
 
 
     public static void start()
@@ -73,7 +110,6 @@ class ServerUDP
 
         void print(Message newMessage) => Console.WriteLine($"-----------------------------------\nReceived a {newMessage.MsgType} message:\nID: {newMessage.MsgId}\nContent: {newMessage.Content}\n-----------------------------------");
         byte[] encrypt(Message JSONmsg) => Encoding.ASCII.GetBytes(JsonSerializer.Serialize(JSONmsg));
-        Message decrypt(byte[] bytemsg, int end) => JsonSerializer.Deserialize<Message>(Encoding.ASCII.GetString(bytemsg, 0, end));
 
         byte[] buffer = new byte[1000];
 
@@ -97,6 +133,12 @@ class ServerUDP
 
 
                 Message newmsg = decrypt(buffer, recievedmessage);
+                if (newmsg == null)
+                {
+                    Console.WriteLine("Received an invalid message.");
+                    // send error message back to client
+                    continue;
+                }
                 print(newmsg);
 
                 if (newmsg.MsgType == MessageType.Hello && newmsg.MsgId == 0 && newmsg.Content == null)
@@ -132,7 +174,7 @@ class ServerUDP
 
                     case MessageType.DNSLookup:
                         if (!hellorecieved) break;
-                        
+
                         var domain = JsonSerializer.Deserialize<Dictionary<string, string>>(newmsg.Content.ToString());
                         if (!IsValidDomain(domain["Value"]))
                         {
@@ -147,7 +189,7 @@ class ServerUDP
                             Console.WriteLine("Send InvalidDomainError\n\n");
                             break;
                         }
-                        
+
                         DNSRecord FoundRecord = SearchDNSRecords(newmsg.Content);
                         Message DNSLookupReply = new Message
                         {
