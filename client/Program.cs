@@ -173,27 +173,18 @@ class ClientUDP
                         return;
                     }
 
-                    // Skip sending Ack for MsgId == 2 to test server resend logic
-                    if (dnsLookup.MsgId == 2)
+
+                    // Send acknowledgment
+                    Message acknowledge = new Message
                     {
-                        Console.WriteLine("Intentionally NOT sending Ack for MsgId 2 to test server resend.");
-                    }
-                    else
-                    {
-                        // Send acknowledgment
-                        Message acknowledge = new Message
-                        {
-                            MsgId = GetNextMsgId(),
-                            MsgType = MessageType.Ack,
-                            Content = dnsLookup.MsgId
-                        };
-                        byte[] acknowledgeMessage = encrypt(acknowledge);
-                        sock.SendTo(acknowledgeMessage, acknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
-                    }
+                        MsgId = GetNextMsgId(),
+                        MsgType = MessageType.Ack,
+                        Content = dnsLookup.MsgId
+                    };
+                    byte[] acknowledgeMessage = encrypt(acknowledge);
+                    sock.SendTo(acknowledgeMessage, acknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
+
                 }
-                // else if (newMsg.MsgType == MessageType.Error)
-                // {
-                // }
                 else
                 {
                     Console.WriteLine("Unexpected message type received!");
