@@ -58,7 +58,7 @@ class ServerUDP
             Console.WriteLine($"Error reading DNS records: {ex.Message}");
             return new List<DNSRecord>();
         }
-        
+
     }
 
     public static DNSRecord SearchDNSRecords(object content)
@@ -72,7 +72,7 @@ class ServerUDP
             }
 
             Dictionary<string, string> contents = JsonSerializer.Deserialize<Dictionary<string, string>>(content.ToString());
-            
+
             if (contents == null || !contents.ContainsKey("Type") || !contents.ContainsKey("Value")) return null;
 
             string dnstype = contents["Type"];
@@ -96,8 +96,12 @@ class ServerUDP
             return null;
         }
     }
-    
-    
+
+    private static Dictionary<int, (Message reply, EndPoint remote, int attempts, DateTime lastSent)> pendingReplies = new();
+    private const int MaxRetries = 3;
+    private static TimeSpan RetryInterval = TimeSpan.FromSeconds(2);
+
+
 
 
     public static void start()
@@ -127,6 +131,23 @@ class ServerUDP
         Console.WriteLine("\nWaiting for messages...\n");
         while (true)
         {
+            // Check for pending replies to resend
+            foreach (var kvp in pendingReplies.ToList())
+            {
+                var (reply, remote, attempts, lastSent) = kvp.Value;
+                if (attempts < MaxRetries && DateTime.Now - lastSent > RetryInterval)
+                {
+                    byte[] replyBytes = encrypt(reply);
+                    sock.SendTo(replyBytes, replyBytes.Length, SocketFlags.None, remote);
+                    pendingReplies[kvp.Key] = (reply, remote, attempts + 1, DateTime.Now);
+                    Console.WriteLine($"Resent DNSLookupReply for MsgId {kvp.Key}, attempt {attempts + 1}");
+                }
+                else if (attempts >= MaxRetries)
+                {
+                    pendingReplies.Remove(kvp.Key);
+                    Console.WriteLine($"Max retries reached for MsgId {kvp.Key}, giving up.");
+                }
+            }
             try
             {
                 int recievedmessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
@@ -189,7 +210,7 @@ class ServerUDP
 
                     case MessageType.DNSLookup:
                         if (!hellorecieved) break;
-                        
+
                         if (newmsg.Content == null)
                         {
                             Console.WriteLine("DNSLookup message content is null.");
@@ -206,8 +227,8 @@ class ServerUDP
                         }
 
                         var domain = JsonSerializer.Deserialize<Dictionary<string, string>>(newmsg.Content.ToString());
-                        if (domain == null || 
-                            !domain.ContainsKey("Value") || !(domain["Value"] is string value) || 
+                        if (domain == null ||
+                            !domain.ContainsKey("Value") || !(domain["Value"] is string value) ||
                             !domain.ContainsKey("Type") || !(domain["Type"] is string type))
                         {
                             Console.WriteLine("DNSLookup message is missing required keys (Value or Type).");
@@ -222,7 +243,7 @@ class ServerUDP
                             Console.WriteLine("Send MissingKeysError\n\n");
                             break;
                         }
-                        
+
                         if (!IsValidDomain(domain["Value"]))
                         {
                             Message InvalidDomainError = new Message
@@ -247,10 +268,24 @@ class ServerUDP
                         byte[] DNSLookupReplyMessage = encrypt(DNSLookupReply);
                         sock.SendTo(DNSLookupReplyMessage, DNSLookupReplyMessage.Length, SocketFlags.None, remoteEndpoint);
                         Console.WriteLine("Send DNSLookupReply\n\n");
+
+                        // Track for selective repeat for both DNSLookupReply and Error (for DNSLookup)
+                        if (DNSLookupReply.MsgType == MessageType.DNSLookupReply || DNSLookupReply.MsgType == MessageType.Error)
+                        {
+                            pendingReplies[DNSLookupReply.MsgId] = (DNSLookupReply, remoteEndpoint, 1, DateTime.Now);
+                        }
                         break;
 
                     case MessageType.Ack:
-                        Console.WriteLine("\n");
+                        if (newmsg.Content is JsonElement elem && elem.ValueKind == JsonValueKind.Number)
+                        {
+                            int ackedMsgId = elem.GetInt32();
+                            if (pendingReplies.ContainsKey(ackedMsgId))
+                            {
+                                pendingReplies.Remove(ackedMsgId);
+                                Console.WriteLine($"Ack received for MsgId {ackedMsgId}, removed from pending.\n\n");
+                            }
+                        }
                         break;
 
                     default:
@@ -341,5 +376,5 @@ class ServerUDP
         return true;
     }
 
-    
+
 }
