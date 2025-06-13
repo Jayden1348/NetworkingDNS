@@ -170,15 +170,15 @@ class ServerUDP
                 if (!Enum.IsDefined(typeof(MessageType), newmsg.MsgType))
                 {
                     Console.WriteLine($"Invalid MsgType received: {newmsg.MsgType}");
-                    // Message Error = new Message
-                    // {
-                    //     MsgId = newmsg.MsgId,
-                    //     MsgType = MessageType.Error,
-                    //     Content = "Invalid MsgType received!"
-                    // };
-                    // byte[] ErrorMessage = encrypt(Error);
-                    // sock.SendTo(ErrorMessage, ErrorMessage.Length, SocketFlags.None, remoteEndpoint);
-                    // continue;
+                    Message Error = new Message
+                    {
+                        MsgId = newmsg.MsgId,
+                        MsgType = MessageType.Error,
+                        Content = "Invalid MsgType received!"
+                    };
+                    byte[] ErrorMessage = encrypt(Error);
+                    sock.SendTo(ErrorMessage, ErrorMessage.Length, SocketFlags.None, remoteEndpoint);
+                    continue;
                 }
                 print(newmsg);
 

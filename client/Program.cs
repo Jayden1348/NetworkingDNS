@@ -173,7 +173,6 @@ class ClientUDP
                         return;
                     }
 
-
                     // Send acknowledgment
                     Message acknowledge = new Message
                     {
