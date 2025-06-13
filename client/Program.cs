@@ -165,11 +165,11 @@ class ClientUDP
                 Message newMsg = decrypt(buffer, receivedMessage);
                 print(newMsg);
 
-                if (newMsg.MsgType == MessageType.DNSLookupReply || newMsg.MsgType == MessageType.Error)
+                if (newMsg.MsgType == MessageType.DNSLookupReply)
                 {
                     if (newMsg.MsgId != dnsLookup.MsgId)
                     {
-                        Console.WriteLine($"The ID of the received message ({newMsg.MsgId}) does not match the expected ID ({dnsLookup.MsgId})!");
+                        // Console.WriteLine($"The ID of the received message ({newMsg.MsgId}) does not match the expected ID ({dnsLookup.MsgId})!");
                         return;
                     }
 
@@ -182,6 +182,9 @@ class ClientUDP
                     };
                     byte[] acknowledgeMessage = encrypt(acknowledge);
                     sock.SendTo(acknowledgeMessage, acknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
+                }
+                else if (newMsg.MsgType == MessageType.Error)
+                {
                 }
                 else
                 {
