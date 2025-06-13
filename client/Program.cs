@@ -173,15 +173,23 @@ class ClientUDP
                         return;
                     }
 
-                    // Send acknowledgment
-                    Message acknowledge = new Message
+                    // Skip sending Ack for MsgId == 2 to test server resend logic
+                    if (dnsLookup.MsgId == 2)
                     {
-                        MsgId = GetNextMsgId(),
-                        MsgType = MessageType.Ack,
-                        Content = dnsLookup.MsgId
-                    };
-                    byte[] acknowledgeMessage = encrypt(acknowledge);
-                    sock.SendTo(acknowledgeMessage, acknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
+                        Console.WriteLine("Intentionally NOT sending Ack for MsgId 2 to test server resend.");
+                    }
+                    else
+                    {
+                        // Send acknowledgment
+                        Message acknowledge = new Message
+                        {
+                            MsgId = GetNextMsgId(),
+                            MsgType = MessageType.Ack,
+                            Content = dnsLookup.MsgId
+                        };
+                        byte[] acknowledgeMessage = encrypt(acknowledge);
+                        sock.SendTo(acknowledgeMessage, acknowledgeMessage.Length, SocketFlags.None, ServerEndpoint);
+                    }
                 }
                 // else if (newMsg.MsgType == MessageType.Error)
                 // {
@@ -211,20 +219,28 @@ class ClientUDP
 
 
         // Receive and print End message from server
+        sock.ReceiveTimeout = 5000; // 10 seconds
+
         Console.WriteLine("Waiting for End message from server...");
         try
         {
-            int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
-            Message endMsg = decrypt(buffer, receivedMessage);
-            print(endMsg);
+            bool endReceived = false;
+            while (!endReceived)
+            {
+                int receivedMessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
+                Message endMsg = decrypt(buffer, receivedMessage);
+                print(endMsg);
 
-            if (endMsg.MsgType == MessageType.End)
-            {
-                Console.WriteLine("Received End message. Terminating client.");
-            }
-            else
-            {
-                Console.WriteLine("Unexpected message type: received instead of End!");
+                if (endMsg.MsgType == MessageType.End)
+                {
+                    Console.WriteLine("Received End message. Terminating client.");
+                    endReceived = true;
+                }
+                else
+                {
+                    Console.WriteLine("Received non-End message while waiting for End. Ignoring and waiting...");
+                    // Optionally: handle or log the message here
+                }
             }
         }
         catch (SocketException ex)

@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 
 using LibData;
 
@@ -99,9 +100,9 @@ class ServerUDP
 
     private static Dictionary<int, (Message reply, EndPoint remote, int attempts, DateTime lastSent)> pendingReplies = new();
     private const int MaxRetries = 3;
-    private static TimeSpan RetryInterval = TimeSpan.FromSeconds(2);
+    private static TimeSpan RetryInterval = TimeSpan.FromSeconds(1);
 
-
+    private static bool sessionEnded = false;
 
 
     public static void start()
@@ -131,23 +132,27 @@ class ServerUDP
         Console.WriteLine("\nWaiting for messages...\n");
         while (true)
         {
-            // Check for pending replies to resend
-            foreach (var kvp in pendingReplies.ToList())
+            // Only resend if session has not ended
+            if (!sessionEnded)
             {
-                var (reply, remote, attempts, lastSent) = kvp.Value;
-                if (attempts < MaxRetries && DateTime.Now - lastSent > RetryInterval)
+                foreach (var kvp in pendingReplies.ToList())
                 {
-                    byte[] replyBytes = encrypt(reply);
-                    sock.SendTo(replyBytes, replyBytes.Length, SocketFlags.None, remote);
-                    pendingReplies[kvp.Key] = (reply, remote, attempts + 1, DateTime.Now);
-                    Console.WriteLine($"Resent DNSLookupReply for MsgId {kvp.Key}, attempt {attempts + 1}");
-                }
-                else if (attempts >= MaxRetries)
-                {
-                    pendingReplies.Remove(kvp.Key);
-                    Console.WriteLine($"Max retries reached for MsgId {kvp.Key}, giving up.");
+                    var (reply, remote, attempts, lastSent) = kvp.Value;
+                    if (attempts < MaxRetries && DateTime.Now - lastSent > RetryInterval)
+                    {
+                        byte[] replyBytes = encrypt(reply);
+                        sock.SendTo(replyBytes, replyBytes.Length, SocketFlags.None, remote);
+                        pendingReplies[kvp.Key] = (reply, remote, attempts + 1, DateTime.Now);
+                        Console.WriteLine($"Resent DNSLookupReply for MsgId {kvp.Key}, attempt {attempts + 1}");
+                    }
+                    else if (attempts >= MaxRetries)
+                    {
+                        pendingReplies.Remove(kvp.Key);
+                        Console.WriteLine($"Max retries reached for MsgId {kvp.Key}, giving up.");
+                    }
                 }
             }
+
             try
             {
                 int recievedmessage = sock.ReceiveFrom(buffer, ref remoteEndpoint);
@@ -308,6 +313,30 @@ class ServerUDP
                 if (ex.SocketErrorCode == SocketError.TimedOut)
                 {
                     if (msgcounter == msgtracker) { continue; }
+
+                    // Wait for all pending retries to finish before ending session
+                    while (pendingReplies.Count > 0)
+                    {
+                        foreach (var kvp in pendingReplies.ToList())
+                        {
+                            var (reply, remote, attempts, lastSent) = kvp.Value;
+                            if (attempts < MaxRetries && DateTime.Now - lastSent > RetryInterval)
+                            {
+                                byte[] replyBytes = encrypt(reply);
+                                sock.SendTo(replyBytes, replyBytes.Length, SocketFlags.None, remote);
+                                pendingReplies[kvp.Key] = (reply, remote, attempts + 1, DateTime.Now);
+                                Console.WriteLine($"Resent DNSLookupReply for MsgId {kvp.Key}, attempt {attempts + 1}");
+                            }
+                            else if (attempts >= MaxRetries)
+                            {
+                                pendingReplies.Remove(kvp.Key);
+                                Console.WriteLine($"Max retries reached for MsgId {kvp.Key}, giving up.");
+                            }
+                        }
+                        // Give time for retries to be sent and avoid tight loop
+                        Thread.Sleep(100);
+                    }
+
                     Console.WriteLine("No further requests. Sending End message to client...");
                     Message EndMessage = new Message
                     {
@@ -319,6 +348,11 @@ class ServerUDP
                     sock.SendTo(EndMessageBytes, EndMessageBytes.Length, SocketFlags.None, remoteEndpoint);
                     Console.WriteLine("Send End\n\n");
                     msgtracker = msgcounter;
+
+                    // Stop resending after End
+                    sessionEnded = true;
+                    pendingReplies.Clear();
+
                 }
                 else
                 {
